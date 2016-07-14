@@ -1430,6 +1430,12 @@ int main(void)
 			report_ready = true;
 			pthread_mutex_unlock(&mx_stat_rep);
 		}
+
+		uint32_t trig_cnt_us;
+		if (lgw_get_trigcnt(&trig_cnt_us) == LGW_HAL_SUCCESS && trig_cnt_us == 0x7E000000) {
+			MSG("ERROR: [main] unintended SX1301 reset detected, terminating packet forwarder.\n");
+			exit(EXIT_FAILURE);
+		}
 	}
 	
 	/* wait for upstream thread to finish (1 fetch cycle max) */
