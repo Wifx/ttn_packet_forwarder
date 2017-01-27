@@ -1438,7 +1438,7 @@ int main(void)
 			pthread_mutex_unlock(&mx_concent);
 			exit(EXIT_FAILURE);
 		}
-	    pthread_mutex_unlock(&mx_concent);
+		pthread_mutex_unlock(&mx_concent);
 	}
 	
 	/* wait for upstream thread to finish (1 fetch cycle max) */
