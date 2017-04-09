@@ -197,9 +197,9 @@
         }
 	},
 	"gateway_conf": {
-	    /* change with default server address/ports, or overwrite in local_conf.json */
-        "gateway_ID": "AA555A0000000000",
-        
+		/* change with default server address/ports, or overwrite in local_conf.json */
+		"gateway_ID": "AA555A0000000000",
+
 		"server_address": "router.eu.thethings.network",
 		"serv_port_up": 1700,
 		"serv_port_down": 1700,
@@ -209,20 +209,20 @@
 			"serv_port_down": 1700,
 			"serv_enabled": true
 		} ]
-		
+
 		/* GPS configuration */
-        "gps_tty_path": "/dev/ttyAMA0",
-        "fake_gps": true,
-        "ref_latitude": 10,
-        "ref_longitude": 20,
-        "ref_altitude": -1,
-		
+		"gps_tty_path": "/dev/ttyAMA0",
+		"fake_gps": true,
+		"ref_latitude": 10,
+		"ref_longitude": 20,
+		"ref_altitude": -1,
+
 		/* Platform definition, put a asterix here for the system value, max 24 chars. */
-        "platform": "LORIX One EU868", 
-        /* Email of gateway operator, max 40 chars*/
-        "contact_email": "operator@gateway.tst", 
-        /* Public description of this device, max 64 chars */
-        "description": "Update me" 
+		"platform": "LORIX One EU868", 
+		/* Email of gateway operator, max 40 chars*/
+		"contact_email": "operator@gateway.tst", 
+		/* Public description of this device, max 64 chars */
+		"description": "Update me" 
 	}
 
 }
