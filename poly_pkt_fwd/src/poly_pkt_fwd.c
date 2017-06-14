@@ -33,6 +33,8 @@ Maintainer: Ruud Vlaming
 #include <stdint.h>		/* C99 types */
 #include <stdbool.h>	/* bool type */
 #include <stdio.h>		/* printf, fprintf, snprintf, fopen, fputs */
+#include <stdarg.h>     /* variable argument fonction (MSG) */
+#include <getopt.h>     /* long option flags */
 
 #include <string.h>		/* memset */
 #include <signal.h>		/* sigaction */
@@ -66,7 +68,6 @@ Maintainer: Ruud Vlaming
 #define ARRAY_SIZE(a)	(sizeof(a) / sizeof((a)[0]))
 #define STRINGIFY(x)	#x
 #define STR(x)			STRINGIFY(x)
-#define MSG(args...)	printf(args) /* message that is destined to the user */
 #define TRACE() 		fprintf(stderr, "@ %s %d\n", __FUNCTION__, __LINE__);
 
 /* -------------------------------------------------------------------------- */
@@ -238,6 +239,32 @@ static bool statusstream_enabled = true;    /* controls the data flow of status 
 static char platform[24]    = DISPLAY_PLATFORM;  /* platform definition */
 static char email[40]       = "";                /* used for contact email */
 static char description[64] = "";                /* used for free form description */
+
+/* Log system */
+char *log_output = NULL;                         /* log file path if any */
+
+static int MSG(const char *format, ...){         /* message that is destined to the user */
+    va_list arg;
+    int done;
+
+    va_start(arg, format);
+
+    /* print text to stdout */
+    done = vprintf(format, arg);
+
+    if(log_output != NULL){
+        FILE *file = fopen(log_output, "a+");
+        if(file != NULL){
+            /* if log file option and success to open the file */
+            done = vfprintf(file, format, arg);
+            fclose(file);
+        }
+    }
+
+    va_end(arg);
+
+    return done;
+}
 
 /* -------------------------------------------------------------------------- */
 /* --- MAC OSX Extensions  -------------------------------------------------- */
@@ -1007,10 +1034,21 @@ double difftimespec(struct timespec end, struct timespec beginning) {
 	return x;
 }
 
+void display_usage(){
+    MSG("*** Poly Packet Forwarder for Lora Gateway ***\nVersion: " VERSION_STRING "\n");
+    MSG("*** Lora concentrator HAL library version info ***\n%s\n***\n", lgw_version_info());
+
+    MSG("\nAvailable options:\n");
+    MSG("  --log, -l <output file>  Redirect stdout/stderr to a log file\n");
+    MSG("  --help, -h               Print this help message\n\n");
+
+    exit(EXIT_FAILURE);
+}
+
 /* -------------------------------------------------------------------------- */
 /* --- MAIN FUNCTION -------------------------------------------------------- */
 
-int main(void)
+int main(int argc, char **argv)
 {
 	struct sigaction sigact; /* SIGQUIT&SIGINT&SIGTERM signal handling */
 	int i; /* loop variable and temporary variable for return value */
@@ -1065,11 +1103,46 @@ int main(void)
 	float rx_nocrc_ratio;
 	float up_ack_ratio;
 	float dw_ack_ratio;
-	
+
+	int c;
+
+	while(1){
+        static struct option long_options[] =
+        {
+            /* These options set a flag. */
+            {"help",    no_argument,        NULL,           'h'},
+            {"log",     required_argument,  NULL,           'l'},
+            {NULL,      no_argument,        NULL,           0},
+        };
+        /* getopt_long stores the option index here. */
+        int option_index = 0;
+
+        c = getopt_long (argc, argv, "hl:", long_options, &option_index);
+
+        /* Detect the end of the options */
+        if(c == -1)
+            break;
+
+        switch(c){
+        case 0:
+            break;
+        case 'l':
+            /* save the log file path parameter */
+            log_output = malloc(strlen(optarg)+1);
+            strcpy((void *)log_output, (void *)optarg);
+            break;
+        case 'h':
+        case '?':
+            display_usage();
+        default:
+            break;
+        }
+	}
+
 	/* display version informations */
 	MSG("*** Poly Packet Forwarder for Lora Gateway ***\nVersion: " VERSION_STRING "\n");
 	MSG("*** Lora concentrator HAL library version info ***\n%s\n***\n", lgw_version_info());
-	
+
 	/* display host endianness */
 	#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 		MSG("INFO: Little endian host\n");
@@ -1109,11 +1182,11 @@ int main(void)
 		if (gps_fake_enable == false) {
 			i = lgw_gps_enable(gps_tty_path, NULL, 0, &gps_tty_fd);
 			if (i != LGW_GPS_SUCCESS) {
-				printf("WARNING: [main] impossible to open %s for GPS sync (check permissions)\n", gps_tty_path);
+				MSG("WARNING: [main] impossible to open %s for GPS sync (check permissions)\n", gps_tty_path);
 				gps_active = false;
 				gps_ref_valid = false;
 			} else {
-				printf("INFO: [main] TTY port %s open for GPS synchronization\n", gps_tty_path);
+				MSG("INFO: [main] TTY port %s open for GPS synchronization\n", gps_tty_path);
 				gps_active = true;
 				gps_ref_valid = false;
 			}
@@ -1386,38 +1459,38 @@ int main(void)
 		}
 		
 		/* display a report */
-		printf("\n##### %s #####\n", stat_timestamp);
-		printf("### [UPSTREAM] ###\n");
-		printf("# RF packets received by concentrator: %u\n", cp_nb_rx_rcv);
-		printf("# CRC_OK: %.2f%%, CRC_FAIL: %.2f%%, NO_CRC: %.2f%%\n", 100.0 * rx_ok_ratio, 100.0 * rx_bad_ratio, 100.0 * rx_nocrc_ratio);
-		printf("# RF packets forwarded: %u (%u bytes)\n", cp_up_pkt_fwd, cp_up_payload_byte);
-		printf("# PUSH_DATA datagrams sent: %u (%u bytes)\n", cp_up_dgram_sent, cp_up_network_byte);
-		printf("# PUSH_DATA acknowledged: %.2f%%\n", 100.0 * up_ack_ratio);
-		printf("### [DOWNSTREAM] ###\n");
-		printf("# PULL_DATA sent: %u (%.2f%% acknowledged)\n", cp_dw_pull_sent, 100.0 * dw_ack_ratio);
-		printf("# PULL_RESP(onse) datagrams received: %u (%u bytes)\n", cp_dw_dgram_rcv, cp_dw_network_byte);
-		printf("# RF packets sent to concentrator: %u (%u bytes)\n", (cp_nb_tx_ok+cp_nb_tx_fail), cp_dw_payload_byte);
-		printf("# TX errors: %u\n", cp_nb_tx_fail);
-		printf("### [GPS] ###\n");
+		MSG("\n##### %s #####\n", stat_timestamp);
+		MSG("### [UPSTREAM] ###\n");
+		MSG("# RF packets received by concentrator: %u\n", cp_nb_rx_rcv);
+		MSG("# CRC_OK: %.2f%%, CRC_FAIL: %.2f%%, NO_CRC: %.2f%%\n", 100.0 * rx_ok_ratio, 100.0 * rx_bad_ratio, 100.0 * rx_nocrc_ratio);
+		MSG("# RF packets forwarded: %u (%u bytes)\n", cp_up_pkt_fwd, cp_up_payload_byte);
+		MSG("# PUSH_DATA datagrams sent: %u (%u bytes)\n", cp_up_dgram_sent, cp_up_network_byte);
+		MSG("# PUSH_DATA acknowledged: %.2f%%\n", 100.0 * up_ack_ratio);
+		MSG("### [DOWNSTREAM] ###\n");
+		MSG("# PULL_DATA sent: %u (%.2f%% acknowledged)\n", cp_dw_pull_sent, 100.0 * dw_ack_ratio);
+		MSG("# PULL_RESP(onse) datagrams received: %u (%u bytes)\n", cp_dw_dgram_rcv, cp_dw_network_byte);
+		MSG("# RF packets sent to concentrator: %u (%u bytes)\n", (cp_nb_tx_ok+cp_nb_tx_fail), cp_dw_payload_byte);
+		MSG("# TX errors: %u\n", cp_nb_tx_fail);
+		MSG("### [GPS] ###\n");
 		//TODO: this is not symmetrical. time can also be derived from other sources, fix
 		if (gps_enabled == true) {
 			/* no need for mutex, display is not critical */
 			if (gps_ref_valid == true) {
-				printf("# Valid gps time reference (age: %li sec)\n", (long)difftime(time(NULL), time_reference_gps.systime));
+				MSG("# Valid gps time reference (age: %li sec)\n", (long)difftime(time(NULL), time_reference_gps.systime));
 			} else {
-				printf("# Invalid gps time reference (age: %li sec)\n", (long)difftime(time(NULL), time_reference_gps.systime));
+				MSG("# Invalid gps time reference (age: %li sec)\n", (long)difftime(time(NULL), time_reference_gps.systime));
 			}
 			if (gps_fake_enable == true) {
-				printf("# Manual GPS coordinates: latitude %.5f, longitude %.5f, altitude %i m\n", cp_gps_coord.lat, cp_gps_coord.lon, cp_gps_coord.alt);
+				MSG("# Manual GPS coordinates: latitude %.5f, longitude %.5f, altitude %i m\n", cp_gps_coord.lat, cp_gps_coord.lon, cp_gps_coord.alt);
 			} else if (coord_ok == true) {
-				printf("# System GPS coordinates: latitude %.5f, longitude %.5f, altitude %i m\n", cp_gps_coord.lat, cp_gps_coord.lon, cp_gps_coord.alt);
+				MSG("# System GPS coordinates: latitude %.5f, longitude %.5f, altitude %i m\n", cp_gps_coord.lat, cp_gps_coord.lon, cp_gps_coord.alt);
 			} else {
-				printf("# no valid GPS coordinates available yet\n");
+				MSG("# no valid GPS coordinates available yet\n");
 			}
 		} else {
-			printf("# GPS sync is disabled\n");
+			MSG("# GPS sync is disabled\n");
 		}
-		printf("##### END #####\n");
+		MSG("##### END #####\n");
 		
 		/* generate a JSON report (will be sent to server by upstream thread) */
 		if (statusstream_enabled == true) {
