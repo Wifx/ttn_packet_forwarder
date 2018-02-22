@@ -12,7 +12,6 @@
 #define _GHOST_H_
 
 #include "loragw_hal.h"
-#include "poly_pkt_fwd.h"
 
 /* -------------------------------------------------------------------------- */
 /* --- PRIVATE CONSTANTS AND FIELDS ------------------------------------------ */

@@ -19,7 +19,9 @@ RELEASE_VERSION := $(shell cat ../VERSION)
 CC := $(CROSS_COMPILE)gcc
 AR := $(CROSS_COMPILE)ar
 
-CFLAGS := -O2 -Wall -Wextra -std=c99 -Iinc -I.
+INC_PATH := inc
+
+CFLAGS := -O2 -Wall -Wextra -std=c99 -I$(INC_PATH) -I.
 VFLAG := -D VERSION_STRING="\"$(RELEASE_VERSION)\""
 
 ### Constants for Lora concentrator HAL library
@@ -32,6 +34,9 @@ ifneq ($(wildcard $(LGW_PATH)/inc/config.h),)
 endif
 LGW_INC += $(LGW_PATH)/inc/loragw_hal.h
 LGW_INC += $(LGW_PATH)/inc/loragw_gps.h
+
+INC_FILES := $(wildcard $(INC_PATH)/*.h)
+OBJ_FILES := $(patsubst src/%.c,obj/%.o,$(wildcard src/*.c))
 
 ### Linking options
 
@@ -63,25 +68,16 @@ clean:
 	rm -f $(APP_NAME)
 
 ### Sub-modules compilation
-
-obj/base64.o: src/base64.c inc/base64.h
-	$(CC) -c $(CFLAGS) $< -o $@
-
-obj/parson.o: src/parson.c inc/parson.h
-	$(CC) -c $(CFLAGS) $< -o $@
-
-obj/monitor.o: src/monitor.c inc/monitor.h 
-	$(CC) -c $(CFLAGS) $< -o $@
-
-obj/ghost.o: src/ghost.c inc/ghost.h $(LGW_INC)
-	$(CC) -I$(LGW_PATH)/inc -c $(CFLAGS) $< -o $@
+obj/%.o: src/%.c inc/%.h $(INC_FILES)
+	$(CC) -I$(LGW_PATH)/inc -c $(CFLAGS) $(CFLAGS2) $< -o $@
 
 ### Main program compilation and assembly
 
-obj/$(APP_NAME).o: src/$(APP_NAME).c $(LGW_INC) inc/parson.h inc/base64.h inc/ghost.h inc/monitor.h
-	$(CC) -c $(CFLAGS) $(VFLAG) -I$(LGW_PATH)/inc $< -o $@
+obj/$(APP_NAME).o: src/$(APP_NAME).c $(LGW_INC) $(INC_FILES)
+	$(CC) -c $(CFLAGS) $(CFLAGS2) $(VFLAG) -I$(LGW_PATH)/inc $< -o $@
 
-$(APP_NAME): obj/$(APP_NAME).o $(LGW_PATH)/libloragw.a obj/parson.o obj/base64.o obj/ghost.o obj/monitor.o 
-	$(CC) -L$(LGW_PATH) $< obj/parson.o obj/base64.o obj/ghost.o obj/monitor.o -o $@ $(LIBS)
+$(APP_NAME): $(LGW_PATH)/libloragw.a $(OBJ_FILES)
+	@echo $(OBJ_FILES)
+	$(CC) -L$(LGW_PATH) $< $(OBJ_FILES) -o $@ $(LIBS)
 
 ### EOF
