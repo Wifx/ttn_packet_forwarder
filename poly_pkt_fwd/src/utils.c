@@ -436,7 +436,7 @@ int parse_gateway_configuration(const char * conf_file, struct gateway_conf *gtw
 	str = json_object_get_string(conf_obj, "contact_email");
 	if (str != NULL) {
 		strncpy(gtw_conf->email, str, sizeof gtw_conf->email);
-		log_msg("INFO: Contact gtw_conf->email configured to \"%s\"\n", gtw_conf->email);
+		log_msg("INFO: Contact email configured to \"%s\"\n", gtw_conf->email);
 	}
 
 	/* Read of gtw_conf->description */
